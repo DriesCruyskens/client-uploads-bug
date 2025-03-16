@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'
 
 import { s3Storage } from '@payloadcms/storage-s3'
 import { Media } from './collections/Media'
+import { NewestMedia } from './collections/NewestMedia'
 import { NewMedia } from './collections/NewMedia'
 import { Users } from './collections/Users'
 
@@ -22,7 +23,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, NewMedia],
+  collections: [Users, Media, NewMedia, NewestMedia],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
@@ -36,12 +37,13 @@ export default buildConfig({
   sharp,
   plugins: [
     payloadCloudPlugin(),
+    // Generates endpoint /storage-s3-generate-signed-url
     s3Storage({
-      clientUploads: true, // <-- only the first plugin instance that declares clientUploads: true will work.
+      clientUploads: true,
       collections: {
         media: true,
       },
-      bucket: process.env.S3_BUCKET!,
+      bucket: process.env.S3_BUCKET1!,
       config: {
         credentials: {
           accessKeyId: process.env.S3_ACCESS_KEY_ID!,
@@ -50,15 +52,28 @@ export default buildConfig({
         region: process.env.S3_REGION,
       },
     }),
-    // Seconds storage plugin so we can use a different bucket for new-media
+    // Generates endpoint /storage-s3-generate-signed-url-1
     s3Storage({
-      // Other instances that use clientUploads don't work. I assume because the /storage-s3-generate-signed-url endpoint is already configured?
-      // If we switch these two plugin instance around, the new-media collection will work but the media collection will not.
-      clientUploads: true, // <--- This prevents uploads from working
+      clientUploads: true,
       collections: {
         'new-media': true,
       },
-      bucket: process.env.S3_NEW_BUCKET!, // <--- Different bucket
+      bucket: process.env.S3_BUCKET2!,
+      config: {
+        credentials: {
+          accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+        },
+        region: process.env.S3_REGION,
+      },
+    }),
+    s3Storage({
+      // Also generates endpoint /storage-s3-generate-signed-url-1, causing an error: "Collection credit-certificates was not found in S3 options"
+      clientUploads: true,
+      collections: {
+        'new-media': true,
+      },
+      bucket: process.env.S3_BUCKET3!,
       config: {
         credentials: {
           accessKeyId: process.env.S3_ACCESS_KEY_ID!,
